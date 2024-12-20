@@ -1,34 +1,51 @@
+# drpyS(drpy-node)
 
+nodejs作为服务端的drpy实现。全面升级异步写法
 
-# DRPY-Node 自动同步器
+* [本地配置接口-动态本地](/config)
+* [本地配置接口-动态外网/局域网](/config/1)
+* [其他配置接口-订阅过滤](/docs/sub.md)
+* [代码加解密工具](/admin/encoder)
+* [V我50支付凭证生成器](/authcoder?len=10&number=1)
+* [接口压测教程](/docs/httpTest.md)
+* [央视点播解析工具](/proxy/央视大全[官]/index.html)
+* [cookie管理插件](/apps/cookie-butler/index.html)
 
-这个项目使用 GitHub Actions 自动同步 [drpy-node](https://github.com/hjdhnx/drpy-node) 仓库的完整内容到根目录。
+## 更新记录
 
-## 功能
+### 20241220
 
-- 每天自动同步 drpy-node 项目的最新完整代码
-- 支持手动触发同步
-- 完整复制所有文件到根目录
+更新至V1.0.16
 
-## 配置说明
+1. 更新细节，增加一些函数
+2. 增加订阅码自定义排序功能
 
-1. Fork 这个仓库
-2. 无需修改配置文件，已经预设为同步 drpy-node 项目
-3. 确保 GitHub Actions 已启用（在仓库的 Actions 标签页中确认）
+[点此查看完整更新记录](docs/updateRecord.md)
 
-## 使用方法
+## 基础框架
 
-### 自动同步
-- 系统会在每天 UTC 0:00（北京时间 8:00）自动运行同步
-- 同步后，所有文件将直接保存在仓库根目录
+todo:
 
-### 手动同步
-1. 进入仓库的 Actions 标签页
-2. 选择 "Daily Repository Sync" workflow
-3. 点击 "Run workflow" 按钮
+1. js里的源能否去除export开头，保持跟qjs一致
+2. js里的源，像一级这种异步js，里面调用未定义的函数，能否不通过函数参数传入直接注入调用
+3. 在源的各个函数调用的时候动态注入input、MY_URL等局部变量不影响全局。搞了半天没成功，有点难受，待解决
 
-## 注意事项
+写源的函数不可以使用箭头函数，箭头函数无法拿到this作用域就没法获取input和MY_URL变量
 
-- 每次同步会完全覆盖除了 .git 和 .github 目录外的所有文件
-- 如果您对原始文件有修改，请注意备份，因为同步会覆盖这些修改
-- 建议定期检查同步状态
+精简去除的库:
+
+1. axios
+2. jsonpath
+3. underscore
+4. pino-pretty
+5. deasync
+
+## 参考资料
+
+* [crypto-js-wasm使用教程](docs/crypto-js-wasm/readme-CN.md)
+* [puppeteer使用教程](docs/pupInstall.md)
+* [drpyS源属性说明](docs/ruleAttr.md)
+
+## 问题说明
+
+1. windows上直接运行index.js可能会发现运行过程中的日志打印出中文乱码。建议通过yarn dev运行或者在package.json里点击dev脚本运行
