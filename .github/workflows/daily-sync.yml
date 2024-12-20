@@ -17,19 +17,35 @@ jobs:
           
       - name: Clone drpy-node repository
         run: |
-          # 清空当前目录（保留.git和github工作流文件）
+          # 创建临时目录
           mkdir -p temp_backup
-          mv .git temp_backup/
-          mv .github temp_backup/
-          rm -rf *
           
-          # 还原.git和github工作流
-          mv temp_backup/.git ./
-          mv temp_backup/.github ./
-          rm -rf temp_backup
+          # 保存重要文件
+          if [ -d ".git" ]; then
+            cp -r .git temp_backup/
+          fi
+          if [ -d ".github" ]; then
+            cp -r .github temp_backup/
+          fi
+          
+          # 清空当前目录
+          find . -mindepth 1 -maxdepth 1 ! -name 'temp_backup' -exec rm -rf {} +
           
           # 克隆最新的drpy-node仓库内容
           git clone https://github.com/hjdhnx/drpy-node.git .
+          
+          # 还原重要文件
+          if [ -d "temp_backup/.git" ]; then
+            rm -rf .git
+            mv temp_backup/.git ./
+          fi
+          if [ -d "temp_backup/.github" ]; then
+            rm -rf .github
+            mv temp_backup/.github ./
+          fi
+          
+          # 清理临时目录
+          rm -rf temp_backup
           
       - name: Configure Git
         run: |
@@ -39,5 +55,5 @@ jobs:
       - name: Commit and push changes
         run: |
           git add -A
-          git commit -m "Auto sync with drpy-node repository $(date +'%Y-%m-%d %H:%M:%S')"
+          git commit -m "Auto sync with drpy-node repository $(date +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
           git push origin main
