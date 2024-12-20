@@ -31,8 +31,12 @@ jobs:
           # 清空当前目录
           find . -mindepth 1 -maxdepth 1 ! -name 'temp_backup' -exec rm -rf {} +
           
-          # 克隆最新的drpy-node仓库内容
-          git clone https://github.com/hjdhnx/drpy-node.git .
+          # 克隆最新的drpy-node仓库内容到临时目录
+          git clone https://github.com/hjdhnx/drpy-node.git temp_clone
+          
+          # 移动克隆的内容到当前目录
+          mv temp_clone/* temp_clone/.* . 2>/dev/null || true
+          rm -rf temp_clone
           
           # 还原重要文件
           if [ -d "temp_backup/.git" ]; then
