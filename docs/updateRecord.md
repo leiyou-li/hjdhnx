@@ -1,5 +1,13 @@
 # drpyS更新记录
 
+### 20241222
+
+更新至V1.0.18
+
+1. 修复`cookie管理工具`扫码获取夸克和UC的cookie不正确的问题，感谢 [@Hiram-Wong](https://github.com/Hiram-Wong)
+2. `COOKIE.parse` 支持列表，修复 `COOKIE.stringify` 可以直接将obj转为正确的cookie字符串，区别于 `COOKIE.serialize` 方法
+3. 夸克cookie入库自动清洗，只保留有效部分
+
 ### 20241221
 
 更新至V1.0.17
@@ -9,6 +17,8 @@
 3. 完善Cookie管理器的扫码和输入后入库功能逻辑
 4. 引入自然排序算法库解决生成的配置中源的顺序问题
 5. 海阔排序问题需要使用nodejsi18n小程序
+6. cookie入库自动去除\n
+7. 支持网盘工具
 
 ### 20241220
 
