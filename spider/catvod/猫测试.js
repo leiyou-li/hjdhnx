@@ -12,8 +12,22 @@ function init(ext) {
     console.log('init');
 }
 
+function qjs_test() {
+    console.log('typeof getProxyUrl:', typeof getProxyUrl);
+    if (typeof getProxyUrl === 'function') {
+        console.log('getProxyUrl():', getProxyUrl());
+    }
+    const t1 = Date.now()
+    let str = '';
+    for (let i = 0; i < 1000_000; i++) {
+        str += 'a';
+    }
+    const t2 = Date.now()
+    console.log(`qjs字符串拼接测试耗时: ${Math.ceil(t2 - t1)} ms`);
+}
+
 function home(filter) {
-    console.log("home");
+    qjs_test();
     let classes = [];
     classes.push({
         'type_id': 'test',
@@ -94,6 +108,12 @@ function search(wd, quick) {
     })
 }
 
+function proxy(params) {
+    console.log("proxy:", params);
+    console.log('getProxyUrl():', getProxyUrl());
+    return [200, 'text/plain;charset=utf-8', 'hello drpyS, 我是猫测试的本地代理', null];
+}
+
 // 导出函数对象
 export default {
     init: init,
@@ -103,4 +123,5 @@ export default {
     detail: detail,
     play: play,
     search: search,
+    proxy: proxy,
 }
