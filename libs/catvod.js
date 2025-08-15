@@ -12,7 +12,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const _data_path = path.join(__dirname, '../data');
 const _config_path = path.join(__dirname, '../config');
 const _lib_path = path.join(__dirname, '../spider/catvod');
+const enable_cat_debug = Number(process.env.CAT_DEBUG) || 0;
 
+console.log('enable_cat_debug:', enable_cat_debug);
 
 const json2Object = function (json) {
     if (!json) {
@@ -33,7 +35,17 @@ const loadEsmWithEnv = async function (filePath, env) {
     let injectedCode = rawCode;
     const esm_flag1 = 'export function __jsEvalReturn';
     const esm_flag2 = 'export default';
-    const polyfill_code = 'var ENV={};\nvar getProxyUrl=null;\nexport const initEnv = (env)=>{ENV = env;if(env.getProxyUrl){getProxyUrl=env.getProxyUrl}};\n';
+    const polyfill_code = `
+var _ENV={};
+var getProxyUrl=null;
+var getProxy=null;
+export const initEnv = (env)=>{
+    _ENV = env;
+    if(env.getProxyUrl){
+        getProxyUrl=env.getProxyUrl;
+        getProxy=env.getProxyUrl
+    }
+};`.trim() + '\n';
     if (rawCode.includes(esm_flag1)) {
         injectedCode = rawCode.replace(esm_flag1, `${polyfill_code}${esm_flag1}`)
     } else if (rawCode.includes('export default')) {
@@ -82,7 +94,12 @@ const init = async function (filePath, env = {}, refresh) {
         }
         log(`Loading module: ${filePath}`);
         let t1 = getNowTime();
-        const module = await loadEsmWithEnv(filePath, env);
+        let module;
+        if (enable_cat_debug) {
+            module = await loadEsmWithHash(filePath, fileHash);
+        } else {
+            module = await loadEsmWithEnv(filePath, env);
+        }
         // console.log('module:', module);
         let rule;
         if (module && module.__jsEvalReturn && typeof module.__jsEvalReturn === 'function') {
