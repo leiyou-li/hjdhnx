@@ -15,6 +15,22 @@ import batchExecute from '../libs_drpy/batchExecute.js';
 
 const {jsEncoder} = drpyS;
 
+function parseExt(str) {
+    try {
+        const parsed = JSON.parse(str);
+        if (Array.isArray(parsed) || (typeof parsed === 'object' && parsed !== null)) {
+            return parsed;
+        }
+    } catch (e) {
+        // 忽略错误
+    }
+    return str;
+}
+
+function logExt(_ext) {
+    return Array.isArray(_ext) || typeof _ext == "object" ? JSON.stringify(_ext) : _ext
+}
+
 // 工具函数：生成 JSON 数据
 async function generateSiteJSON(options, requestHost, sub, pwd) {
     const jsDir = options.jsDir;
@@ -84,6 +100,7 @@ async function generateSiteJSON(options, requestHost, sub, pwd) {
 
     let link_jar = '';
     let enableRuleName = ENV.get('enable_rule_name', '0') === '1';
+    let enableOldConfig = Number(ENV.get('enable_old_config', '0'));
     let isLoaded = await drpyS.isLoaded();
     let forceHeader = Number(process.env.FORCE_HEADER) || 0;
     let dr2ApiType = Number(process.env.DR2_API_TYPE) || 0; // 0 ds里的api 1壳子内置
@@ -92,7 +109,11 @@ async function generateSiteJSON(options, requestHost, sub, pwd) {
         valid_files = valid_files.filter(it => !(new RegExp('\\[[密]\\]|密+')).test(it));
     }
     let SitesMap = getSitesMap(configDir);
+    let mubanKeys = Object.keys(SitesMap);
     // console.log(SitesMap);
+    // console.log(mubanKeys);
+    // 排除模板后缀的DS源
+    valid_files = valid_files.filter(it => !/\[模板]\.js$/.test(it));
     log(`开始生成ds的t4配置，jsDir:${jsDir},源数量: ${valid_files.length}`);
     const tasks = valid_files.map((file) => {
         return {
@@ -139,11 +160,12 @@ async function generateSiteJSON(options, requestHost, sub, pwd) {
                 ruleMeta.title = enableRuleName ? ruleMeta.title || baseName : baseName;
 
                 let fileSites = [];
+                const isMuban = mubanKeys.includes(baseName);
                 if (baseName === 'push_agent') {
                     let key = 'push_agent';
                     let name = `${ruleMeta.title}(DS)`;
                     fileSites.push({key, name});
-                } else if (SitesMap.hasOwnProperty(baseName) && Array.isArray(SitesMap[baseName])) {
+                } else if (isMuban && SitesMap.hasOwnProperty(baseName) && Array.isArray(SitesMap[baseName])) {
                     SitesMap[baseName].forEach((it) => {
                         let key = `drpyS_${it.alias}`;
                         let name = `${it.alias}(DS)`;
@@ -153,6 +175,8 @@ async function generateSiteJSON(options, requestHost, sub, pwd) {
                         }
                         fileSites.push({key, name, ext});
                     });
+                } else if (isMuban) {
+                    return
                 } else {
                     let key = `drpyS_${ruleMeta.title}`;
                     let name = `${ruleMeta.title}(DS)`;
@@ -363,23 +387,25 @@ async function generateSiteJSON(options, requestHost, sub, pwd) {
 
                     let fileSites = [];
                     ext = ext || ruleMeta.ext || '';
+                    const isMuban = mubanKeys.includes(baseName) || /^(APP|getapp3)/.test(baseName);
                     if (baseName === 'push_agent') {
                         let key = 'push_agent';
                         let name = `${ruleMeta.title}(hipy)`;
                         fileSites.push({key, name, ext});
-                    } else if (SitesMap.hasOwnProperty(baseName) && Array.isArray(SitesMap[baseName])) {
+                    } else if (isMuban && SitesMap.hasOwnProperty(baseName) && Array.isArray(SitesMap[baseName])) {
                         // console.log(SitesMap[baseName]);
                         SitesMap[baseName].forEach((it) => {
                             let key = `hipy_py_${it.alias}`;
                             let name = `${it.alias}(hipy)`;
                             let _ext = it.queryStr;
-                            try {
-                                _ext = JSON.parse(_ext);
-                            } catch (err) {
+                            if (!enableOldConfig) {
+                                _ext = parseExt(_ext);
                             }
-                            console.log(`[HIPY-${baseName}] alias name: ${name},typeof _ext:${typeof _ext},_ext: ${_ext}`);
+                            console.log(`[HIPY-${baseName}] alias name: ${name},typeof _ext:${typeof _ext},_ext: ${logExt(_ext)}`);
                             fileSites.push({key, name, ext: _ext});
                         });
+                    } else if (isMuban) {
+                        return
                     } else {
                         let key = `hipy_py_${ruleMeta.title}`;
                         let name = `${ruleMeta.title}(hipy)`;
@@ -420,11 +446,12 @@ async function generateSiteJSON(options, requestHost, sub, pwd) {
                 func: async ({file, catDir, requestHost, pwd, SitesMap}) => {
                     const baseName = path.basename(file, '.js'); // 去掉文件扩展名
                     const extJson = path.join(catDir, baseName + '.json');
-                    let api = enable_cat === '1' ? `${requestHost}/cat/${file}` : `${requestHost}/api/${baseName}?do=cat`;  // 使用请求的 host 地址，避免硬编码端口
+                    const isT3 = enable_cat === '1' || baseName.includes('[B]');
+                    let api = isT3 ? `${requestHost}/cat/${file}` : `${requestHost}/api/${baseName}?do=cat`;  // 使用请求的 host 地址，避免硬编码端口
                     let ext = existsSync(extJson) ? `${requestHost}/cat/${file}` : '';
 
                     if (pwd) {
-                        api += api_type === 3 ? '?' : '&';
+                        api += isT3 ? '?' : '&';
                         api += `pwd=${pwd}`;
                         if (ext) {
                             ext += `?pwd=${pwd}`;
@@ -468,12 +495,10 @@ async function generateSiteJSON(options, requestHost, sub, pwd) {
                             let key = `catvod_${it.alias}`;
                             let name = `${it.alias}(cat)`;
                             let _ext = it.queryStr;
-
-                            try {
-                                _ext = JSON.parse(_ext);
-                            } catch (err) {
+                            if (!enableOldConfig) {
+                                _ext = parseExt(_ext);
                             }
-                            console.log(`[CAT-${baseName}] alias name: ${name},typeof _ext:${typeof _ext},_ext: ${_ext}`);
+                            console.log(`[CAT-${baseName}] alias name: ${name},typeof _ext:${typeof _ext},_ext: ${logExt(_ext)}`);
                             fileSites.push({key, name, ext: _ext});
                         });
                     } else {
@@ -486,7 +511,7 @@ async function generateSiteJSON(options, requestHost, sub, pwd) {
                         const site = {
                             key: fileSite.key,
                             name: fileSite.name,
-                            type: api_type, // 固定值
+                            type: isT3 ? 3 : api_type, // 固定值
                             api,
                             ...ruleMeta,
                             ext: fileSite.ext || "", // 固定为空字符串
@@ -753,10 +778,13 @@ export default (fastify, options, done) => {
             //     }
             // }
             const getFilePath = (cfgPath, rootDir, fileName) => path.join(rootDir, `data/cat/${fileName}`);
-            const processContent = (content, cfgPath, requestUrl) =>
-                content.replace('$config_url', requestUrl.replace(cfgPath, `/1?sub=all&pwd=${process.env.API_PWD || ''}`));
+            const processContent = (content, cfgPath, requestUrl, requestHost) => {
+                const $config_url = requestUrl.replace(cfgPath, `/1?sub=all&pwd=${process.env.API_PWD || ''}`);
+                return content.replaceAll('$config_url', $config_url).replaceAll('$host', requestHost);
+            }
 
-            const handleJavaScript = (cfgPath, requestUrl, options, reply) => {
+
+            const handleJavaScript = (cfgPath, requestUrl, requestHost, options, reply) => {
                 const fileMap = {
                     'index.js': 'index.js',
                     'index.config.js': 'index.config.js'
@@ -766,7 +794,7 @@ export default (fastify, options, done) => {
                     if (cfgPath.includes(key)) {
                         const filePath = getFilePath(cfgPath, options.rootDir, fileName);
                         let content = readFileSync(filePath, 'utf-8');
-                        content = processContent(content, cfgPath, requestUrl);
+                        content = processContent(content, cfgPath, requestUrl, requestHost);
                         return reply.type('application/javascript;charset=utf-8').send(content);
                     }
                 }
@@ -790,7 +818,7 @@ export default (fastify, options, done) => {
                 }
             };
             if (cfg_path.endsWith('.js')) {
-                return handleJavaScript(cfg_path, requestUrl, options, reply);
+                return handleJavaScript(cfg_path, requestUrl, requestHost, options, reply);
             }
 
             if (cfg_path.endsWith('.js.md5')) {
